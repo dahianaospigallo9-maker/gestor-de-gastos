@@ -7,7 +7,7 @@ const loginRoutes = require("./routes/login");
 const movimientosRoutes = require("./routes/movimientos");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // CONFIGURACIÓN
 
