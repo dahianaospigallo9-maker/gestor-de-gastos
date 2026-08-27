@@ -10,7 +10,7 @@ const userEmail = sessionStorage.getItem("userEmail");
 // En desarrollo local utiliza el mismo servidor.
 // Cuando se despliegue, se puede cambiar por la URL del backend.
 
-const API_URL = "http://localhost:3000";
+const API_URL = "";
 
 // COMPROBAR SESIÓN
 
