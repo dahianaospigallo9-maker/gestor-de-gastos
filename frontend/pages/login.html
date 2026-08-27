@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Iniciar sesión - Gestor de Gastos</title>
+
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>Gestor de Gastos</h1>
+    </header>
+
+    <main>
+
+        <section class="form-section">
+
+            <h2>Iniciar sesión</h2>
+
+            <form id="loginForm" novalidate>
+
+                <div class="form-group">
+
+                    <label for="loginEmail">
+                        Correo electrónico
+                    </label>
+
+                    <input
+                        type="email"
+                        id="loginEmail"
+                        name="email"
+                        autocomplete="email"
+                        required
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="loginPassword">
+                        Contraseña
+                    </label>
+
+                    <input
+                        type="password"
+                        id="loginPassword"
+                        name="password"
+                        autocomplete="current-password"
+                        required
+                    >
+
+                </div>
+
+                <button type="submit">
+                    Iniciar sesión
+                </button>
+
+            </form>
+
+            <p>
+                ¿No tienes una cuenta?
+                <a href="registro.html">Crear cuenta</a>
+            </p>
+
+        </section>
+
+    </main>
+
+    <script src="../js/login.js"></script>
+
+</body>
+
+</html>

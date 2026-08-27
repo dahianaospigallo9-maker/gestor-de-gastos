@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Crear cuenta - Gestor de Gastos</title>
+
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>Gestor de Gastos</h1>
+    </header>
+
+    <main>
+
+        <section class="form-section">
+
+            <h2>Crear cuenta</h2>
+
+            <form id="registerForm" novalidate>
+
+                <div class="form-group">
+
+                    <label for="name">
+                        Nombre
+                    </label>
+
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        autocomplete="name"
+                        required
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="email">
+                        Correo electrónico
+                    </label>
+
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        autocomplete="email"
+                        required
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="password">
+                        Contraseña
+                    </label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        autocomplete="new-password"
+                        required
+                    >
+
+                    <ul id="passwordRules">
+
+                        <li id="lengthRule">
+                            ○ Mínimo 8 caracteres
+                        </li>
+
+                        <li id="uppercaseRule">
+                            ○ Una letra mayúscula
+                        </li>
+
+                        <li id="lowercaseRule">
+                            ○ Una letra minúscula
+                        </li>
+
+                        <li id="numberRule">
+                            ○ Un número
+                        </li>
+
+                        <li id="specialRule">
+                            ○ Un carácter especial
+                        </li>
+
+                    </ul>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="confirmPassword">
+                        Confirmar contraseña
+                    </label>
+
+                    <input
+                        type="password"
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        autocomplete="new-password"
+                        required
+                    >
+
+                </div>
+
+                <button type="submit">
+                    Crear cuenta
+                </button>
+
+            </form>
+
+            <p>
+                ¿Ya tienes una cuenta?
+                <a href="login.html">Iniciar sesión</a>
+            </p>
+
+        </section>
+
+    </main>
+
+    <script src="../js/registro.js"></script>
+
+</body>
+
+</html>

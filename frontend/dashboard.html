@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Panel - Gestor de Gastos</title>
+
+    <link
+        rel="stylesheet"
+        href="css/styles.css"
+    >
+
+</head>
+
+<body>
+
+    <header>
+
+        <h1>Gestor de Gastos</h1>
+
+        <button
+            type="button"
+            id="logoutButton"
+        >
+            Cerrar sesión
+        </button>
+
+    </header>
+
+
+    <main>
+
+        <section class="dashboard">
+
+            <h2>
+                Bienvenida,
+                <span id="userName"></span>
+            </h2>
+
+            <p>
+                Este es tu panel principal.
+            </p>
+
+
+            <!-- =========================================
+                 CONFIGURACIÓN
+            ========================================== -->
+
+            <section class="settings-section">
+
+                <h2>Configuración</h2>
+
+                <div class="form-group">
+
+                    <label for="mainCurrency">
+                        Moneda principal
+                    </label>
+
+                    <select
+                        id="mainCurrency"
+                        name="mainCurrency"
+                        required
+                    >
+
+                        <option value="">
+                            Selecciona una moneda
+                        </option>
+
+                        <option value="EUR">
+                            EUR - €
+                        </option>
+
+                        <option value="USD">
+                            USD - $
+                        </option>
+
+                        <option value="GBP">
+                            GBP - £
+                        </option>
+
+                        <option value="COP">
+                            COP - $
+                        </option>
+
+                        <option value="MXN">
+                            MXN - $
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <button
+                    type="button"
+                    id="saveCurrencyButton"
+                >
+                    Guardar moneda
+                </button>
+
+            </section>
+
+
+            <!-- =========================================
+                 RESUMEN
+            ========================================== -->
+
+            <section class="summary">
+
+                <article>
+
+                    <h3>Ingresos</h3>
+
+                    <p id="totalIncome">
+                        0,00 €
+                    </p>
+
+                </article>
+
+
+                <article>
+
+                    <h3>Gastos</h3>
+
+                    <p id="totalExpenses">
+                        0,00 €
+                    </p>
+
+                </article>
+
+
+                <article>
+
+                    <h3>Saldo</h3>
+
+                    <p id="balance">
+                        0,00 €
+                    </p>
+
+                </article>
+
+                <article>
+
+                        <h3>Ahorro</h3>
+
+                        <p id="totalSavings">
+                            0,00 €
+                        </p>
+
+                    </article>
+
+            </section>
+                
+            <!-- =========================================
+                 AGREGAR MOVIMIENTO
+            ========================================== -->
+
+            <section class="movement-section">
+
+                <h2>Agregar movimiento</h2>
+
+
+                <form id="movementForm">
+
+
+                    <!-- TIPO -->
+
+                    <div class="form-group">
+
+                        <label for="movementType">
+                            Tipo de movimiento
+                        </label>
+
+                        <select
+                            id="movementType"
+                            name="movementType"
+                            required
+                        >
+
+                            <option value="">
+                                Selecciona una opción
+                            </option>
+
+                            <option value="income">
+                                Ingreso
+                            </option>
+
+                            <option value="expense">
+                                Gasto
+                            </option>
+
+                            <option value="saving">
+                                Ahorro
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- DESCRIPCIÓN -->
+
+                    <div class="form-group">
+
+                        <label for="description">
+                            Descripción
+                        </label>
+
+                        <input
+                            type="text"
+                            id="description"
+                            name="description"
+                            placeholder="Ejemplo: Salario o supermercado"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- CANTIDAD -->
+
+                    <div class="form-group">
+
+                        <label for="amount">
+                            Cantidad
+                        </label>
+
+                        <input
+                            type="number"
+                            id="amount"
+                            name="amount"
+                            min="0.01"
+                            step="0.01"
+                            placeholder="0.00"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- CATEGORÍA -->
+
+                    <div
+                        class="form-group"
+                        id="categoryGroup"
+                        style="display: none;"
+                    >
+
+                        <label for="category">
+                            Categoría
+                        </label>
+
+                        <select
+                            id="category"
+                            name="category"
+                        >
+
+                            <option value="">
+                                Selecciona una categoría
+                            </option>
+
+                            <option value="food">
+                                Comida
+                            </option>
+
+                            <option value="personal">
+                                Productos personales
+                            </option>
+
+                            <option value="leisure">
+                                Ocio
+                            </option>
+
+                            <option value="other">
+                                Otros
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- FECHA -->
+
+                    <div class="form-group">
+
+                        <label for="date">
+                            Fecha
+                        </label>
+
+                        <input
+                            type="date"
+                            id="date"
+                            name="date"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- BOTÓN -->
+
+                    <button type="submit">
+                        Guardar movimiento
+                    </button>
+
+
+                </form>
+
+            </section>
+
+
+            <!-- =========================================
+                 MOVIMIENTOS RECIENTES
+            ========================================== -->
+
+            <section class="recent-movements">
+
+                <h2>
+                    Movimientos recientes
+                </h2>
+
+
+                <!-- FILTRO -->
+
+                <div class="movement-filter">
+
+                    <label for="movementFilter">
+                        Filtrar movimientos
+                    </label>
+
+                    <select id="movementFilter">
+
+                        <option value="all">
+                            Todos
+                        </option>
+
+                        <option value="income">
+                            Ingresos
+                        </option>
+
+                        <option value="expense">
+                            Gastos
+                        </option>
+
+                        <option value="saving">
+                            Ahorros
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- LISTA DE MOVIMIENTOS -->
+
+                <div id="recentMovements">
+
+                    <p>
+                        Todavía no tienes movimientos registrados.
+                    </p>
+
+                </div>
+
+            </section>
+
+
+        </section>
+
+    </main>
+
+
+    <!-- =============================================
+         JAVASCRIPT
+    ============================================== -->
+
+    <script src="js/MovimientoStrategy.js"></script>
+
+    <script src="js/IngresoStrategy.js"></script>
+
+    <script src="js/GastoStrategy.js"></script>
+
+    <script src="js/AhorroStrategy.js"></script>
+
+    <script src="js/MovimientoBuilder.js"></script>
+
+    <script src="js/dashboard.js"></script>
+
+
+</body>
+
+</html>
