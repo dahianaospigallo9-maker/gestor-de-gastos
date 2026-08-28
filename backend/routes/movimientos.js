@@ -1,33 +1,42 @@
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
+
+const pool = require("../database/db");
 
 const router = express.Router();
-
-const movimientosFile = path.join(
-    __dirname,
-    "../data/movimientos.json"
-);
 
 
 // ==================================================
 // OBTENER MOVIMIENTOS
 // ==================================================
 
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
 
     try {
 
-        const movimientosData =
-            fs.readFileSync(
-                movimientosFile,
-                "utf-8"
+        const result =
+            await pool.query(
+                `
+                SELECT
+                    m.id,
+                    u.nombre AS usuario,
+                    m.tipo,
+                    m.descripcion,
+                    m.cantidad,
+                    m.moneda,
+                    m.categoria,
+                    m.fecha
+                FROM movimientos m
+                INNER JOIN usuarios u
+                    ON m.usuario_id = u.id
+                ORDER BY m.id ASC
+                `
             );
 
-        const movimientos =
-            JSON.parse(movimientosData);
 
-        res.status(200).json(movimientos);
+        res.status(200).json(
+            result.rows
+        );
+
 
     } catch (error) {
 
@@ -35,6 +44,7 @@ router.get("/", (req, res) => {
             "Error al obtener movimientos:",
             error
         );
+
 
         res.status(500).json({
 
@@ -52,7 +62,7 @@ router.get("/", (req, res) => {
 // CREAR MOVIMIENTO
 // ==================================================
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
 
     try {
 
@@ -83,11 +93,11 @@ router.post("/", (req, res) => {
         }
 
 
-       if (
-        tipo !== "income" &&
-        tipo !== "expense" &&
-        tipo !== "saving"
-    ) {
+        if (
+            tipo !== "income" &&
+            tipo !== "expense" &&
+            tipo !== "saving"
+        ) {
 
             return res.status(400).json({
 
@@ -151,76 +161,93 @@ router.post("/", (req, res) => {
 
 
         // ==========================================
-        // LEER MOVIMIENTOS
+        // BUSCAR USUARIO
         // ==========================================
 
-        const movimientosData =
-            fs.readFileSync(
-                movimientosFile,
-                "utf-8"
+        const userResult =
+            await pool.query(
+                `
+                SELECT id
+                FROM usuarios
+                WHERE nombre = $1
+                `,
+                [usuario]
             );
 
-        const movimientos =
-            JSON.parse(movimientosData);
+
+        if (
+            userResult.rows.length === 0
+        ) {
+
+            return res.status(404).json({
+
+                message:
+                    "El usuario no fue encontrado."
+
+            });
+
+        }
+
+
+        const usuarioId =
+            userResult.rows[0].id;
 
 
         // ==========================================
         // CREAR MOVIMIENTO
         // ==========================================
 
-        const nuevoMovimiento = {
-
-            id: Date.now(),
-
-            usuario: usuario,
-
-            tipo: tipo,
-
-            descripcion:
-                descripcion,
-
-            cantidad:
-                cantidad,
-
-            moneda:
-                moneda,
-
-            categoria:
-                tipo === "expense"
-                    ? categoria
-                    : null,
-
-            fecha:
-                fecha
-
-        };
-
-
-        // ==========================================
-        // GUARDAR
-        // ==========================================
-
-        movimientos.push(
-            nuevoMovimiento
-        );
+        const result =
+            await pool.query(
+                `
+                INSERT INTO movimientos
+                (
+                    usuario_id,
+                    tipo,
+                    descripcion,
+                    cantidad,
+                    moneda,
+                    categoria,
+                    fecha
+                )
+                VALUES
+                ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING id
+                `,
+                [
+                    usuarioId,
+                    tipo,
+                    descripcion.trim(),
+                    cantidad,
+                    moneda,
+                    tipo === "expense"
+                        ? categoria
+                        : null,
+                    fecha
+                ]
+            );
 
 
-        fs.writeFileSync(
+        const movimientoResult =
+            await pool.query(
+                `
+                SELECT
+                    m.id,
+                    u.nombre AS usuario,
+                    m.tipo,
+                    m.descripcion,
+                    m.cantidad,
+                    m.moneda,
+                    m.categoria,
+                    m.fecha
+                FROM movimientos m
+                INNER JOIN usuarios u
+                    ON m.usuario_id = u.id
+                WHERE m.id = $1
+                `,
+                [result.rows[0].id]
+            );
 
-            movimientosFile,
-
-            JSON.stringify(
-                movimientos,
-                null,
-                4
-            )
-
-        );
-
-
-        // ==========================================
-        // RESPUESTA
-        // ==========================================
 
         res.status(201).json({
 
@@ -228,9 +255,10 @@ router.post("/", (req, res) => {
                 "Movimiento guardado correctamente.",
 
             movimiento:
-                nuevoMovimiento
+                movimientoResult.rows[0]
 
         });
+
 
     } catch (error) {
 
@@ -238,6 +266,7 @@ router.post("/", (req, res) => {
             "Error al guardar movimiento:",
             error
         );
+
 
         res.status(500).json({
 
@@ -255,7 +284,7 @@ router.post("/", (req, res) => {
 // EDITAR MOVIMIENTO
 // ==================================================
 
-router.put("/:id", (req, res) => {
+router.put("/:id", async (req, res) => {
 
     try {
 
@@ -263,11 +292,9 @@ router.put("/:id", (req, res) => {
             Number(req.params.id);
 
 
-        // ==========================================
-        // VALIDAR ID
-        // ==========================================
-
-        if (Number.isNaN(id)) {
+        if (
+            Number.isNaN(id)
+        ) {
 
             return res.status(400).json({
 
@@ -278,10 +305,6 @@ router.put("/:id", (req, res) => {
 
         }
 
-
-        // ==========================================
-        // RECIBIR DATOS
-        // ==========================================
 
         const {
             tipo,
@@ -294,14 +317,14 @@ router.put("/:id", (req, res) => {
 
 
         // ==========================================
-        // VALIDAR TIPO
+        // VALIDACIONES
         // ==========================================
 
         if (
-        tipo !== "income" &&
-        tipo !== "expense" &&
-        tipo !== "saving"
-    ) {
+            tipo !== "income" &&
+            tipo !== "expense" &&
+            tipo !== "saving"
+        ) {
 
             return res.status(400).json({
 
@@ -312,10 +335,6 @@ router.put("/:id", (req, res) => {
 
         }
 
-
-        // ==========================================
-        // VALIDAR DESCRIPCIÓN
-        // ==========================================
 
         if (!descripcion) {
 
@@ -328,10 +347,6 @@ router.put("/:id", (req, res) => {
 
         }
 
-
-        // ==========================================
-        // VALIDAR CANTIDAD
-        // ==========================================
 
         if (
             typeof cantidad !== "number" ||
@@ -348,10 +363,6 @@ router.put("/:id", (req, res) => {
         }
 
 
-        // ==========================================
-        // VALIDAR MONEDA
-        // ==========================================
-
         if (!moneda) {
 
             return res.status(400).json({
@@ -363,10 +374,6 @@ router.put("/:id", (req, res) => {
 
         }
 
-
-        // ==========================================
-        // VALIDAR FECHA
-        // ==========================================
 
         if (!fecha) {
 
@@ -381,31 +388,40 @@ router.put("/:id", (req, res) => {
 
 
         // ==========================================
-        // LEER MOVIMIENTOS
+        // ACTUALIZAR
         // ==========================================
 
-        const movimientosData =
-            fs.readFileSync(
-                movimientosFile,
-                "utf-8"
+        const result =
+            await pool.query(
+                `
+                UPDATE movimientos
+                SET
+                    tipo = $1,
+                    descripcion = $2,
+                    cantidad = $3,
+                    moneda = $4,
+                    categoria = $5,
+                    fecha = $6
+                WHERE id = $7
+                RETURNING id
+                `,
+                [
+                    tipo,
+                    descripcion.trim(),
+                    cantidad,
+                    moneda,
+                    tipo === "expense"
+                        ? categoria
+                        : null,
+                    fecha,
+                    id
+                ]
             );
 
-        const movimientos =
-            JSON.parse(movimientosData);
 
-
-        // ==========================================
-        // BUSCAR MOVIMIENTO
-        // ==========================================
-
-        const movimientoIndex =
-            movimientos.findIndex(
-                (movimiento) =>
-                    movimiento.id === id
-            );
-
-
-        if (movimientoIndex === -1) {
+        if (
+            result.rows.length === 0
+        ) {
 
             return res.status(404).json({
 
@@ -418,56 +434,29 @@ router.put("/:id", (req, res) => {
 
 
         // ==========================================
-        // ACTUALIZAR MOVIMIENTO
+        // OBTENER MOVIMIENTO ACTUALIZADO
         // ==========================================
 
-        movimientos[movimientoIndex] = {
+        const updatedResult =
+            await pool.query(
+                `
+                SELECT
+                    m.id,
+                    u.nombre AS usuario,
+                    m.tipo,
+                    m.descripcion,
+                    m.cantidad,
+                    m.moneda,
+                    m.categoria,
+                    m.fecha
+                FROM movimientos m
+                INNER JOIN usuarios u
+                    ON m.usuario_id = u.id
+                WHERE m.id = $1
+                `,
+                [id]
+            );
 
-            ...movimientos[movimientoIndex],
-
-            tipo:
-                tipo,
-
-            descripcion:
-                descripcion,
-
-            cantidad:
-                cantidad,
-
-            moneda:
-                moneda,
-
-            categoria:
-                tipo === "expense"
-                    ? categoria
-                    : null,
-
-            fecha:
-                fecha
-
-        };
-
-
-        // ==========================================
-        // GUARDAR CAMBIOS
-        // ==========================================
-
-        fs.writeFileSync(
-
-            movimientosFile,
-
-            JSON.stringify(
-                movimientos,
-                null,
-                4
-            )
-
-        );
-
-
-        // ==========================================
-        // RESPUESTA
-        // ==========================================
 
         res.status(200).json({
 
@@ -475,7 +464,7 @@ router.put("/:id", (req, res) => {
                 "Movimiento actualizado correctamente.",
 
             movimiento:
-                movimientos[movimientoIndex]
+                updatedResult.rows[0]
 
         });
 
@@ -504,7 +493,7 @@ router.put("/:id", (req, res) => {
 // ELIMINAR MOVIMIENTO
 // ==================================================
 
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
 
     try {
 
@@ -512,9 +501,9 @@ router.delete("/:id", (req, res) => {
             Number(req.params.id);
 
 
-        // Validar ID
-
-        if (Number.isNaN(id)) {
+        if (
+            Number.isNaN(id)
+        ) {
 
             return res.status(400).json({
 
@@ -526,28 +515,20 @@ router.delete("/:id", (req, res) => {
         }
 
 
-        // Leer movimientos
-
-        const movimientosData =
-            fs.readFileSync(
-                movimientosFile,
-                "utf-8"
-            );
-
-        const movimientos =
-            JSON.parse(movimientosData);
-
-
-        // Buscar movimiento
-
-        const movimientoExiste =
-            movimientos.some(
-                (movimiento) =>
-                    movimiento.id === id
+        const result =
+            await pool.query(
+                `
+                DELETE FROM movimientos
+                WHERE id = $1
+                RETURNING id
+                `,
+                [id]
             );
 
 
-        if (!movimientoExiste) {
+        if (
+            result.rows.length === 0
+        ) {
 
             return res.status(404).json({
 
@@ -558,32 +539,6 @@ router.delete("/:id", (req, res) => {
 
         }
 
-
-        // Eliminar movimiento
-
-        const movimientosActualizados =
-            movimientos.filter(
-                (movimiento) =>
-                    movimiento.id !== id
-            );
-
-
-        // Guardar cambios
-
-        fs.writeFileSync(
-
-            movimientosFile,
-
-            JSON.stringify(
-                movimientosActualizados,
-                null,
-                4
-            )
-
-        );
-
-
-        // Respuesta
 
         res.status(200).json({
 

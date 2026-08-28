@@ -1,14 +1,14 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const fs = require("fs");
-const path = require("path");
+const jwt = require("jsonwebtoken");
+
+const pool = require("../database/db");
 
 const router = express.Router();
 
-const usersFile = path.join(
-    __dirname,
-    "../data/users.json"
-);
+const JWT_SECRET =
+    process.env.JWT_SECRET ||
+    "clave-temporal-desarrollo";
 
 
 // ==================================================
@@ -68,34 +68,31 @@ router.post("/", async (req, res) => {
         }
 
 
-        // ==========================================
-        // LEER USUARIOS
-        // ==========================================
+        const cleanName =
+            name.trim();
 
-        const usersData =
-            fs.readFileSync(
-                usersFile,
-                "utf-8"
-            );
-
-
-        const users =
-            JSON.parse(usersData);
+        const cleanEmail =
+            email.trim().toLowerCase();
 
 
         // ==========================================
         // COMPROBAR CORREO EXISTENTE
         // ==========================================
 
-        const userExists =
-            users.some(
-                (user) =>
-                    user.email.toLowerCase() ===
-                    email.toLowerCase()
+        const existingUser =
+            await pool.query(
+                `
+                SELECT id
+                FROM usuarios
+                WHERE correo = $1
+                `,
+                [cleanEmail]
             );
 
 
-        if (userExists) {
+        if (
+            existingUser.rows.length > 0
+        ) {
 
             return res.status(409).json({
 
@@ -122,45 +119,31 @@ router.post("/", async (req, res) => {
         // CREAR USUARIO
         // ==========================================
 
-        const newUser = {
-
-            id: Date.now(),
-
-            name:
-                name.trim(),
-
-            email:
-                email.trim().toLowerCase(),
-
-            password:
-                hashedPassword,
-
-            currency:
-                null
-
-        };
-
-
-        // ==========================================
-        // GUARDAR USUARIO
-        // ==========================================
-
-        users.push(
-            newUser
-        );
+        const result =
+            await pool.query(
+                `
+                INSERT INTO usuarios
+                (
+                    nombre,
+                    correo,
+                    password,
+                    moneda
+                )
+                VALUES
+                ($1, $2, $3, $4)
+                RETURNING id, nombre, correo, moneda
+                `,
+                [
+                    cleanName,
+                    cleanEmail,
+                    hashedPassword,
+                    null
+                ]
+            );
 
 
-        fs.writeFileSync(
-
-            usersFile,
-
-            JSON.stringify(
-                users,
-                null,
-                4
-            )
-
-        );
+        const user =
+            result.rows[0];
 
 
         // ==========================================
@@ -181,6 +164,21 @@ router.post("/", async (req, res) => {
             "Error al crear cuenta:",
             error
         );
+
+
+        // Correo duplicado
+        if (
+            error.code === "23505"
+        ) {
+
+            return res.status(409).json({
+
+                message:
+                    "Ya existe una cuenta con este correo electrónico."
+
+            });
+
+        }
 
 
         res.status(500).json({
@@ -209,10 +207,6 @@ router.post("/login", async (req, res) => {
         } = req.body;
 
 
-        // ==========================================
-        // VALIDAR DATOS
-        // ==========================================
-
         if (
             !email ||
             !password
@@ -228,34 +222,33 @@ router.post("/login", async (req, res) => {
         }
 
 
-        // ==========================================
-        // LEER USUARIOS
-        // ==========================================
-
-        const usersData =
-            fs.readFileSync(
-                usersFile,
-                "utf-8"
-            );
-
-
-        const users =
-            JSON.parse(usersData);
+        const cleanEmail =
+            email.trim().toLowerCase();
 
 
         // ==========================================
         // BUSCAR USUARIO
         // ==========================================
 
-        const user =
-            users.find(
-                (user) =>
-                    user.email.toLowerCase() ===
-                    email.toLowerCase()
+        const result =
+            await pool.query(
+                `
+                SELECT
+                    id,
+                    nombre,
+                    correo,
+                    password,
+                    moneda
+                FROM usuarios
+                WHERE correo = $1
+                `,
+                [cleanEmail]
             );
 
 
-        if (!user) {
+        if (
+            result.rows.length === 0
+        ) {
 
             return res.status(401).json({
 
@@ -265,6 +258,10 @@ router.post("/login", async (req, res) => {
             });
 
         }
+
+
+        const user =
+            result.rows[0];
 
 
         // ==========================================
@@ -291,13 +288,36 @@ router.post("/login", async (req, res) => {
 
 
         // ==========================================
+        // CREAR TOKEN
+        // ==========================================
+
+        const token =
+            jwt.sign(
+
+                {
+                    userId: user.id,
+                    email: user.correo
+                },
+
+                JWT_SECRET,
+
+                {
+                    expiresIn: "2h"
+                }
+
+            );
+
+
+        // ==========================================
         // RESPUESTA
         // ==========================================
 
         res.status(200).json({
 
             message:
-                `Bienvenido, ${user.name}.`,
+                `Bienvenido, ${user.nombre}.`,
+
+            token: token,
 
             user: {
 
@@ -305,13 +325,13 @@ router.post("/login", async (req, res) => {
                     user.id,
 
                 name:
-                    user.name,
+                    user.nombre,
 
                 email:
-                    user.email,
+                    user.correo,
 
                 currency:
-                    user.currency || null
+                    user.moneda || null
 
             }
 
@@ -342,7 +362,7 @@ router.post("/login", async (req, res) => {
 // GUARDAR MONEDA PRINCIPAL
 // ==================================================
 
-router.put("/currency", (req, res) => {
+router.put("/currency", async (req, res) => {
 
     try {
 
@@ -398,34 +418,26 @@ router.put("/currency", (req, res) => {
 
 
         // ==========================================
-        // LEER USUARIOS
+        // ACTUALIZAR USUARIO
         // ==========================================
 
-        const usersData =
-            fs.readFileSync(
-                usersFile,
-                "utf-8"
-            );
-
-
-        const users =
-            JSON.parse(usersData);
-
-
-        // ==========================================
-        // BUSCAR USUARIO
-        // ==========================================
-
-        const userIndex =
-            users.findIndex(
-                (user) =>
-                    user.email.toLowerCase() ===
-                    email.toLowerCase()
+        const result =
+            await pool.query(
+                `
+                UPDATE usuarios
+                SET moneda = $1
+                WHERE correo = $2
+                RETURNING id, nombre, correo, moneda
+                `,
+                [
+                    currency,
+                    email.trim().toLowerCase()
+                ]
             );
 
 
         if (
-            userIndex === -1
+            result.rows.length === 0
         ) {
 
             return res.status(404).json({
@@ -436,31 +448,6 @@ router.put("/currency", (req, res) => {
             });
 
         }
-
-
-        // ==========================================
-        // GUARDAR MONEDA
-        // ==========================================
-
-        users[userIndex].currency =
-            currency;
-
-
-        // ==========================================
-        // GUARDAR ARCHIVO
-        // ==========================================
-
-        fs.writeFileSync(
-
-            usersFile,
-
-            JSON.stringify(
-                users,
-                null,
-                4
-            )
-
-        );
 
 
         // ==========================================

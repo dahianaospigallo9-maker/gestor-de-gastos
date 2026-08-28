@@ -1,18 +1,10 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const fs = require("fs");
-const path = require("path");
+
+const pool = require("../database/db");
 
 const router = express.Router();
-
-const usersFile = path.join(
-    __dirname,
-    "../data/users.json"
-);
-
-
-// Clave temporal para desarrollo local
 
 const JWT_SECRET =
     process.env.JWT_SECRET ||
@@ -33,9 +25,14 @@ router.post("/", async (req, res) => {
         } = req.body;
 
 
-        // Validar datos
+        // ==========================================
+        // VALIDAR DATOS
+        // ==========================================
 
-        if (!email || !password) {
+        if (
+            !email ||
+            !password
+        ) {
 
             return res.status(400).json({
 
@@ -47,32 +44,33 @@ router.post("/", async (req, res) => {
         }
 
 
-        // Leer usuarios
+        const cleanEmail =
+            email.trim().toLowerCase();
 
-        const usersData =
-            fs.readFileSync(
-                usersFile,
-                "utf-8"
+
+        // ==========================================
+        // BUSCAR USUARIO EN POSTGRESQL
+        // ==========================================
+
+        const result =
+            await pool.query(
+                `
+                SELECT
+                    id,
+                    nombre,
+                    correo,
+                    password,
+                    moneda
+                FROM usuarios
+                WHERE correo = $1
+                `,
+                [cleanEmail]
             );
 
 
-        const users =
-            JSON.parse(usersData);
-
-
-        // Buscar usuario por correo
-
-        const user =
-            users.find(
-                (user) =>
-                    user.email.toLowerCase() ===
-                    email.toLowerCase()
-            );
-
-
-        // Usuario no encontrado
-
-        if (!user) {
+        if (
+            result.rows.length === 0
+        ) {
 
             return res.status(401).json({
 
@@ -84,7 +82,13 @@ router.post("/", async (req, res) => {
         }
 
 
-        // Comparar contraseña con el hash
+        const user =
+            result.rows[0];
+
+
+        // ==========================================
+        // COMPARAR CONTRASEÑA
+        // ==========================================
 
         const passwordCorrect =
             await bcrypt.compare(
@@ -92,8 +96,6 @@ router.post("/", async (req, res) => {
                 user.password
             );
 
-
-        // Contraseña incorrecta
 
         if (!passwordCorrect) {
 
@@ -107,16 +109,16 @@ router.post("/", async (req, res) => {
         }
 
 
-        // ==================================================
+        // ==========================================
         // CREAR TOKEN
-        // ==================================================
+        // ==========================================
 
         const token =
             jwt.sign(
 
                 {
                     userId: user.id,
-                    email: user.email
+                    email: user.correo
                 },
 
                 JWT_SECRET,
@@ -128,27 +130,30 @@ router.post("/", async (req, res) => {
             );
 
 
-        // ==================================================
+        // ==========================================
         // RESPUESTA
-        // ==================================================
+        // ==========================================
 
         res.status(200).json({
 
             message:
-                `Bienvenido, ${user.name}.`,
+                `Bienvenido, ${user.nombre}.`,
 
             token: token,
 
             user: {
 
-                id: user.id,
+                id:
+                    user.id,
 
-                name: user.name,
+                name:
+                    user.nombre,
 
-                email: user.email,
+                email:
+                    user.correo,
 
                 currency:
-                    user.currency || null
+                    user.moneda || null
 
             }
 
